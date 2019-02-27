@@ -14,11 +14,13 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <vector>
+#include <ctime>
 #include <pcl/range_image/range_image.h>
 #include <pcl/visualization/range_image_visualizer.h>
 #include <pcl/console/parse.h>
 #include <pcl/features/range_image_border_extractor.h>
 #include <pcl/keypoints/narf_keypoint.h>
+#include <pcl/common/transforms.h>
 
 // Types
 typedef pcl::PointXYZ PointT;
@@ -31,7 +33,7 @@ typedef pcl::PointCloud<FeatureT> FeatureCloudT;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointT> ColorHandlerT;
 
 bool live_update = false;
-float support_size = 0.2f;
+float support_size = 0.2f; //0.2
 
 void
 setViewerPose (pcl::visualization::PCLVisualizer& viewer, const Eigen::Affine3f& viewer_pose)
@@ -64,34 +66,36 @@ int main (int argc, char** argv) {
   }
   // Load object and scene
   pcl::console::print_highlight ("Loading point clouds...\n");
-  if (pcl::io::loadPCDFile<PointNT> (argv[1], *pointcloudNT) < 0
-          || pcl::io::loadPCDFile<PointNT> (argv[2], *pointcloudNT_s) < 0)
+  if (pcl::io::loadPCDFile<PointT> (argv[1], *pointCloud) < 0
+          || pcl::io::loadPCDFile<PointT> (argv[2], *pointCloud_s) < 0)
   {
     pcl::console::print_error ("Error loading object/scene file!\n");
     return (1);
   }
+  clock_t start,end;
+  start  = clock();
   // Downsample
   pcl::console::print_highlight ("Downsampling...\n");
-  pcl::VoxelGrid<PointNT> grid;
+  pcl::VoxelGrid<PointT> grid;
   const float leaf = /*0.005f;*/0.01f;
   grid.setLeafSize (leaf, leaf, leaf);
-  grid.setInputCloud (pointcloudNT);
-  grid.filter (*pointcloudNT);
-  grid.setInputCloud (pointcloudNT_s);
-  grid.filter (*pointcloudNT_s);
+  grid.setInputCloud (pointCloud);
+  grid.filter (*pointCloud);
+  grid.setInputCloud (pointCloud_s);
+  grid.filter (*pointCloud_s);
 
   //remove outliers
   pcl::console::print_highlight ("Remove Outliers...\n");
-  pcl::RadiusOutlierRemoval<PointNT> outrem;
+  pcl::RadiusOutlierRemoval<PointT> outrem;
   outrem.setRadiusSearch(0.05);
   outrem.setMinNeighborsInRadius (5);
-  outrem.setInputCloud(pointcloudNT);
-  outrem.filter (*pointcloudNT);
-  outrem.setInputCloud(pointcloudNT_s);
-  outrem.filter (*pointcloudNT_s);
+  outrem.setInputCloud(pointCloud);
+  outrem.filter (*pointCloud);
+  outrem.setInputCloud(pointCloud_s);
+  outrem.filter (*pointCloud_s);
 
   // create a range image
-  float angularResolution = (float) (  0.2f * (M_PI/180.0f));  //   1.0 degree in radians
+  float angularResolution = (float) (  0.1f * (M_PI/180.0f));  //   1.0 degree in radians
   float maxAngleWidth     = (float) (50.0f * (M_PI/180.0f));  // 360.0 degree in radians
   float maxAngleHeight    = (float) (50.0f * (M_PI/180.0f));  // 180.0 degree in radians
   Eigen::Affine3f sensorPose = (Eigen::Affine3f)Eigen::Translation3f(0.0f, 0.0f, 0.0f);
@@ -101,10 +105,10 @@ int main (int argc, char** argv) {
   int borderSize = 1;
   pcl::console::print_highlight ("Range Image...\n");
   pcl::RangeImage rangeImage, rangeImage_s;
-  rangeImage.createFromPointCloud(*pointcloudNT, angularResolution, maxAngleWidth, maxAngleHeight,
+  rangeImage.createFromPointCloud(*pointCloud, angularResolution, maxAngleWidth, maxAngleHeight,
                                   sensorPose, coordinate_frame, noiseLevel, minRange, borderSize);
   std::cout << rangeImage << "\n\n";
-  rangeImage_s.createFromPointCloud(*pointcloudNT_s, angularResolution, maxAngleWidth, maxAngleHeight,
+  rangeImage_s.createFromPointCloud(*pointCloud_s, angularResolution, maxAngleWidth, maxAngleHeight,
                                   sensorPose, coordinate_frame, noiseLevel, minRange, borderSize);
   std::cout << rangeImage_s << "\n\n";
 
@@ -115,8 +119,8 @@ int main (int argc, char** argv) {
   pcl::NarfKeypoint narf_keypoint_detector (&range_image_border_extractor);
   narf_keypoint_detector.setRangeImage (&rangeImage);
   narf_keypoint_detector.getParameters ().support_size = support_size;
-  narf_keypoint_detector.getParameters ().add_points_on_straight_edges = true;
-  narf_keypoint_detector.getParameters ().min_interest_value = 0.6;
+  narf_keypoint_detector.getParameters ().add_points_on_straight_edges = true; //true
+  narf_keypoint_detector.getParameters ().min_interest_value = 0.6; //0.6
   narf_keypoint_detector.getParameters ().optimal_range_image_patch_size = 20;
   //narf_keypoint_detector.getParameters ().distance_for_additional_points = 0.5;
 //  std::cout<< "min_interest_value:="
@@ -135,25 +139,6 @@ int main (int argc, char** argv) {
   std::cout << "Found "<<keypoint_indices_s.points.size ()<<" key points.\n";
 
   // Estimate normals for scene
-  //------------------------------------
-//  pointcloudNT->clear();
-//  pointcloudNT_s->clear();
-//  PointNT pn;
-//  for (auto &point : rangeImage.points) {
-//    pn.x = point.x;
-//    pn.y = point.y;
-//    pn.z = point.z;
-//    pn.normal_x = 0; pn.normal_y = 0; pn.normal_z = 0;
-//    pointcloudNT->push_back(pn);
-//  }
-//  for (auto &point_s : rangeImage_s.points) {
-//    pn.x = point_s.x;
-//    pn.y = point_s.y;
-//    pn.z = point_s.z;
-//    pn.normal_x = 0; pn.normal_y = 0; pn.normal_z = 0;
-//    pointcloudNT_s->push_back(pn);
-//  }
-  //------------------------------------
   pcl::console::print_highlight ("Estimating scene normals...\n");
   pcl::NormalEstimationOMP<pcl::PointWithRange,PointNT> nest;
   nest.setRadiusSearch (0.03);
@@ -199,70 +184,20 @@ int main (int argc, char** argv) {
   for (size_t i=0; i<keypoint_indices_s.points.size (); ++i)
     keypoints_s.points[i].getVector3fMap () = rangeImage_s.points[keypoint_indices_s.points[i]].getVector3fMap ();
 
-/*  pcl::console::print_highlight ("Starting ICP...\n");
-  pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree1(new pcl::search::KdTree<pcl::PointXYZ>);
-  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree2(new pcl::search::KdTree<pcl::PointXYZ>);
-  tree1->setInputCloud(keypoints_ptr);
-  tree2->setInputCloud(keypoints_ptr_s);
-  icp.setSearchMethodSource(tree1);
-  icp.setSearchMethodTarget(tree2);
-  icp.setInputSource(keypoints_ptr);
-  icp.setInputTarget(keypoints_ptr_s);
-  icp.setMaxCorrespondenceDistance(1.5f);
-  icp.setTransformationEpsilon(1e-6);
-  icp.setEuclideanFitnessEpsilon(0.001);
-  icp.setMaximumIterations(10000);
-
-  clock_t start,end;
-  start  = clock();
-  pcl::PointCloud<pcl::PointXYZ>::Ptr Final(new pcl::PointCloud<pcl::PointXYZ>);
-  icp.align(*Final);
-  std::cout << "has converged:" << icp.hasConverged() << " score: " <<
-            icp.getFitnessScore() << std::endl;
-  std::cout << icp.getFinalTransformation() << std::endl;
-  Eigen::Matrix4f m_4f = icp.getFinalTransformation();
-  if (icp.hasConverged())
-  {
-    end = clock();
-    cout <<"calculate time is: "<< float (end-start)/CLOCKS_PER_SEC<<endl;
-    // Print results
-    printf ("\n");
-    Eigen::Matrix4f transformation = icp.getFinalTransformation();
-    pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (0,0), transformation (0,1), transformation (0,2));
-    pcl::console::print_info ("R = | %6.3f %6.3f %6.3f | \n", transformation (1,0), transformation (1,1), transformation (1,2));
-    pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (2,0), transformation (2,1), transformation (2,2));
-    pcl::console::print_info ("\n");
-    pcl::console::print_info ("t = < %0.3f, %0.3f, %0.3f >\n", transformation (0,3), transformation (1,3), transformation (2,3));
-    pcl::console::print_info ("\n");
-
-    // Show alignment
-    pcl::visualization::PCLVisualizer visu("Alignment");
-//    visu.addPointCloud (cloud_targ, ColorHandlerT (cloud_targ, 0.0, 255.0, 0.0), "cloud_targ");
-    visu.addPointCloud (keypoints_ptr_s, ColorHandlerT (keypoints_ptr_s, 0.0, 0.0, 255.0), "cloud_src");
-    visu.addPointCloud (Final, ColorHandlerT (Final, 255.0, 0.0, 0.0), "Final");
-    visu.spin ();
-  }
-  else
-  {
-    pcl::console::print_error ("Failed!!!\n");
-    return (1);
-  }
-
-  return (0);*/
-
   pcl::console::print_highlight ("Starting alignment...\n");
   pcl::SampleConsensusPrerejective<PointT,PointT,FeatureT> align;
   align.setInputSource (keypoints_ptr);
   align.setSourceFeatures (cloud_features);
   align.setInputTarget (keypoints_ptr_s);
   align.setTargetFeatures (cloud_features_s);
-  align.setMaximumIterations (10000); // Number of RANSAC iterations
+  align.setMaximumIterations (20000); // Number of RANSAC iterations
   align.setNumberOfSamples (3); // Number of points to sample for generating/prerejecting a pose
   align.setCorrespondenceRandomness (5); // Number of nearest features to use
   align.setSimilarityThreshold (0.9f); // Polygonal edge length similarity threshold
-  align.setMaxCorrespondenceDistance (1.5f); // Inlier threshold
+  align.setMaxCorrespondenceDistance (2.5f); // Inlier threshold
   align.setInlierFraction (0.4f); // Required inlier fraction for accepting a pose hypothesis
+  align.setEuclideanFitnessEpsilon(0.02);//前后两次迭代误差的差值
+  align.setTransformationEpsilon(1e-9); //上次转换与当前转换的差值；
   {
     pcl::ScopeTime t("Alignment");
     align.align (*cloud_aligned);
@@ -270,6 +205,8 @@ int main (int argc, char** argv) {
 
   if (align.hasConverged ())
   {
+    end = clock();
+    cout <<"calculate time is: "<< float (end-start)/CLOCKS_PER_SEC<<endl;
     printf ("\n");
     Eigen::Matrix4f transformation = align.getFinalTransformation ();
     pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (0,0), transformation (0,1), transformation (0,2));
@@ -279,14 +216,39 @@ int main (int argc, char** argv) {
     pcl::console::print_info ("t = < %0.3f, %0.3f, %0.3f >\n", transformation (0,3), transformation (1,3), transformation (2,3));
     pcl::console::print_info ("\n");
     pcl::console::print_info ("Inliers: %i/%i\n", align.getInliers ().size (), keypoints_ptr->size ());
+
+    //imply ICP....
+//    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+//    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree1(new pcl::search::KdTree<pcl::PointXYZ>);
+//    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree2(new pcl::search::KdTree<pcl::PointXYZ>);
+//    tree1->setInputCloud(pointCloud);
+//    tree2->setInputCloud(pointCloud_s);
+//    icp.setSearchMethodSource(tree1);
+//    icp.setSearchMethodTarget(tree2);
+//    icp.setInputSource(pointCloud);
+//    icp.setInputTarget(pointCloud_s);
+//    icp.setMaxCorrespondenceDistance(0.5);
+//    icp.setTransformationEpsilon(1e-9);
+//    icp.setEuclideanFitnessEpsilon(0.01);
+//    icp.setMaximumIterations (100);
+//    pcl::PointCloud<pcl::PointXYZ>::Ptr Final(new pcl::PointCloud<pcl::PointXYZ>);
+//    icp.align(*Final, transformation);
+    // Show alignment
+
+    // Executing the transformation
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
+    pcl::transformPointCloud (*pointCloud, *transformed_cloud, transformation);
+    pcl::visualization::PCLVisualizer visu("Alignment");
+    visu.addPointCloud (pointCloud_s, ColorHandlerT (pointCloud_s, 0.0, 255.0, 0.0), "target");
+    visu.addPointCloud (transformed_cloud, ColorHandlerT (transformed_cloud, 0.0, 0.0, 255.0), "source");
+    visu.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target");
+    visu.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source");
+//    visu.addPointCloud (cloud_aligned, ColorHandlerT (cloud_aligned, 0.0, 0.0, 255.0), "object_aligned");
+//    visu.addPointCloud (Final, ColorHandlerT (Final, 255.0, 0.0, 0.0), "Final");
+//    visu.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "Final");
+    visu.spin ();
   }
 
-  // Show alignment
-  pcl::visualization::PCLVisualizer visu("Alignment");
-  visu.addPointCloud (keypoints_ptr_s, ColorHandlerT (keypoints_ptr_s, 0.0, 255.0, 0.0), "scene");
-  visu.addPointCloud (cloud_aligned, ColorHandlerT (cloud_aligned, 0.0, 0.0, 255.0), "object_aligned");
-//  visu.addPointCloud (pointcloudNT, pcl::visualization::PointCloudColorHandlerCustom<PointNT> (pointcloudNT, 255.0, 0.0, 0.0), "cloud");
-  visu.spin ();
   // -------------------------------------
   // -----Show keypoints in 3D viewer-----
   // -------------------------------------
