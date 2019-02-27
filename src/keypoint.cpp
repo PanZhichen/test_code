@@ -26,7 +26,7 @@ typedef pcl::PointNormal PointNT;
 typedef pcl::PointCloud<PointNT> PointCloudNT;
 typedef pcl::PointCloud<PointT> PointCloudT;
 typedef pcl::FPFHSignature33 FeatureT;
-typedef pcl::FPFHEstimationOMP<PointNT,PointNT,FeatureT> FeatureEstimationT;
+typedef pcl::FPFHEstimationOMP<pcl::PointWithRange,PointNT,FeatureT> FeatureEstimationT;
 typedef pcl::PointCloud<FeatureT> FeatureCloudT;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointT> ColorHandlerT;
 
@@ -51,7 +51,7 @@ int main (int argc, char** argv) {
   PointCloudNT::Ptr pointcloudNT_s(new PointCloudNT);
   PointCloudNT::Ptr NT_1 (new PointCloudNT);
   PointCloudNT::Ptr NT_s(new PointCloudNT);
-  pcl::search::KdTree<PointNT>::Ptr tree(new pcl::search::KdTree<PointNT>);
+  pcl::search::KdTree<pcl::PointWithRange>::Ptr tree(new pcl::search::KdTree<pcl::PointWithRange>);
   FeatureCloudT::Ptr cloud_features (new FeatureCloudT);
   FeatureCloudT::Ptr cloud_features_s (new FeatureCloudT);
   PointCloudT::Ptr cloud_aligned (new PointCloudT);
@@ -70,7 +70,6 @@ int main (int argc, char** argv) {
     pcl::console::print_error ("Error loading object/scene file!\n");
     return (1);
   }
-
   // Downsample
   pcl::console::print_highlight ("Downsampling...\n");
   pcl::VoxelGrid<PointNT> grid;
@@ -136,13 +135,32 @@ int main (int argc, char** argv) {
   std::cout << "Found "<<keypoint_indices_s.points.size ()<<" key points.\n";
 
   // Estimate normals for scene
+  //------------------------------------
+//  pointcloudNT->clear();
+//  pointcloudNT_s->clear();
+//  PointNT pn;
+//  for (auto &point : rangeImage.points) {
+//    pn.x = point.x;
+//    pn.y = point.y;
+//    pn.z = point.z;
+//    pn.normal_x = 0; pn.normal_y = 0; pn.normal_z = 0;
+//    pointcloudNT->push_back(pn);
+//  }
+//  for (auto &point_s : rangeImage_s.points) {
+//    pn.x = point_s.x;
+//    pn.y = point_s.y;
+//    pn.z = point_s.z;
+//    pn.normal_x = 0; pn.normal_y = 0; pn.normal_z = 0;
+//    pointcloudNT_s->push_back(pn);
+//  }
+  //------------------------------------
   pcl::console::print_highlight ("Estimating scene normals...\n");
-  pcl::NormalEstimationOMP<PointNT,PointNT> nest;
+  pcl::NormalEstimationOMP<pcl::PointWithRange,PointNT> nest;
   nest.setRadiusSearch (0.03);
-  nest.setInputCloud (pointcloudNT);
-  nest.compute (*pointcloudNT);
-  nest.setInputCloud (pointcloudNT_s);
-  nest.compute (*pointcloudNT_s);
+  nest.setInputCloud (rangeImage.makeShared());
+  nest.compute (*NT_1);
+  nest.setInputCloud (rangeImage_s.makeShared());
+  nest.compute (*NT_s);
 
   // Estimate features
   pcl::PointIndicesPtr kkeypoints (new pcl::PointIndices);
@@ -157,13 +175,13 @@ int main (int argc, char** argv) {
   FeatureEstimationT fest;
   fest.setRadiusSearch /*(0.025);*/(0.08);
   fest.setSearchMethod(tree);
-  fest.setInputCloud (pointcloudNT);
-  fest.setInputNormals (pointcloudNT);
+  fest.setInputCloud (rangeImage.makeShared());
+  fest.setInputNormals (NT_1);
   fest.setIndices(kkeypoints);
   fest.compute (*cloud_features);
   std::cout<<"cloud features:="<<cloud_features->points.size()<<std::endl;
-  fest.setInputCloud (pointcloudNT_s);
-  fest.setInputNormals (pointcloudNT_s);
+  fest.setInputCloud (rangeImage_s.makeShared());
+  fest.setInputNormals (NT_s);
   fest.setIndices(kkeypoints_s);
   fest.compute (*cloud_features_s);
   std::cout<<"cloud features_s:="<<cloud_features_s->points.size()<<std::endl;
@@ -180,6 +198,58 @@ int main (int argc, char** argv) {
   keypoints_s.points.resize (keypoint_indices_s.points.size ());
   for (size_t i=0; i<keypoint_indices_s.points.size (); ++i)
     keypoints_s.points[i].getVector3fMap () = rangeImage_s.points[keypoint_indices_s.points[i]].getVector3fMap ();
+
+/*  pcl::console::print_highlight ("Starting ICP...\n");
+  pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree1(new pcl::search::KdTree<pcl::PointXYZ>);
+  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree2(new pcl::search::KdTree<pcl::PointXYZ>);
+  tree1->setInputCloud(keypoints_ptr);
+  tree2->setInputCloud(keypoints_ptr_s);
+  icp.setSearchMethodSource(tree1);
+  icp.setSearchMethodTarget(tree2);
+  icp.setInputSource(keypoints_ptr);
+  icp.setInputTarget(keypoints_ptr_s);
+  icp.setMaxCorrespondenceDistance(1.5f);
+  icp.setTransformationEpsilon(1e-6);
+  icp.setEuclideanFitnessEpsilon(0.001);
+  icp.setMaximumIterations(10000);
+
+  clock_t start,end;
+  start  = clock();
+  pcl::PointCloud<pcl::PointXYZ>::Ptr Final(new pcl::PointCloud<pcl::PointXYZ>);
+  icp.align(*Final);
+  std::cout << "has converged:" << icp.hasConverged() << " score: " <<
+            icp.getFitnessScore() << std::endl;
+  std::cout << icp.getFinalTransformation() << std::endl;
+  Eigen::Matrix4f m_4f = icp.getFinalTransformation();
+  if (icp.hasConverged())
+  {
+    end = clock();
+    cout <<"calculate time is: "<< float (end-start)/CLOCKS_PER_SEC<<endl;
+    // Print results
+    printf ("\n");
+    Eigen::Matrix4f transformation = icp.getFinalTransformation();
+    pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (0,0), transformation (0,1), transformation (0,2));
+    pcl::console::print_info ("R = | %6.3f %6.3f %6.3f | \n", transformation (1,0), transformation (1,1), transformation (1,2));
+    pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (2,0), transformation (2,1), transformation (2,2));
+    pcl::console::print_info ("\n");
+    pcl::console::print_info ("t = < %0.3f, %0.3f, %0.3f >\n", transformation (0,3), transformation (1,3), transformation (2,3));
+    pcl::console::print_info ("\n");
+
+    // Show alignment
+    pcl::visualization::PCLVisualizer visu("Alignment");
+//    visu.addPointCloud (cloud_targ, ColorHandlerT (cloud_targ, 0.0, 255.0, 0.0), "cloud_targ");
+    visu.addPointCloud (keypoints_ptr_s, ColorHandlerT (keypoints_ptr_s, 0.0, 0.0, 255.0), "cloud_src");
+    visu.addPointCloud (Final, ColorHandlerT (Final, 255.0, 0.0, 0.0), "Final");
+    visu.spin ();
+  }
+  else
+  {
+    pcl::console::print_error ("Failed!!!\n");
+    return (1);
+  }
+
+  return (0);*/
 
   pcl::console::print_highlight ("Starting alignment...\n");
   pcl::SampleConsensusPrerejective<PointT,PointT,FeatureT> align;
@@ -215,6 +285,7 @@ int main (int argc, char** argv) {
   pcl::visualization::PCLVisualizer visu("Alignment");
   visu.addPointCloud (keypoints_ptr_s, ColorHandlerT (keypoints_ptr_s, 0.0, 255.0, 0.0), "scene");
   visu.addPointCloud (cloud_aligned, ColorHandlerT (cloud_aligned, 0.0, 0.0, 255.0), "object_aligned");
+//  visu.addPointCloud (pointcloudNT, pcl::visualization::PointCloudColorHandlerCustom<PointNT> (pointcloudNT, 255.0, 0.0, 0.0), "cloud");
   visu.spin ();
   // -------------------------------------
   // -----Show keypoints in 3D viewer-----
