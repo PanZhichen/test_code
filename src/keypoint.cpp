@@ -87,15 +87,17 @@ int main (int argc, char** argv) {
   //remove outliers
   pcl::console::print_highlight ("Remove Outliers...\n");
   pcl::RadiusOutlierRemoval<PointT> outrem;
-  outrem.setRadiusSearch(0.05);
-  outrem.setMinNeighborsInRadius (5);
+  outrem.setRadiusSearch(0.04);
+  outrem.setMinNeighborsInRadius (3);
   outrem.setInputCloud(pointCloud);
   outrem.filter (*pointCloud);
   outrem.setInputCloud(pointCloud_s);
   outrem.filter (*pointCloud_s);
+//  pcl::io::savePCDFileASCII("/home/dji/livox_ws/pcd/22222.pcd", *pointCloud);
+//  pcl::io::savePCDFileASCII("/home/dji/livox_ws/pcd/11111.pcd", *pointCloud_s);
 
   // create a range image
-  float angularResolution = (float) (  0.1f * (M_PI/180.0f));  //   1.0 degree in radians
+  float angularResolution = (float) (  0.2f * (M_PI/180.0f));  //   1.0 degree in radians
   float maxAngleWidth     = (float) (50.0f * (M_PI/180.0f));  // 360.0 degree in radians
   float maxAngleHeight    = (float) (50.0f * (M_PI/180.0f));  // 180.0 degree in radians
   Eigen::Affine3f sensorPose = (Eigen::Affine3f)Eigen::Translation3f(0.0f, 0.0f, 0.0f);
@@ -120,7 +122,7 @@ int main (int argc, char** argv) {
   narf_keypoint_detector.setRangeImage (&rangeImage);
   narf_keypoint_detector.getParameters ().support_size = support_size;
   narf_keypoint_detector.getParameters ().add_points_on_straight_edges = true; //true
-  narf_keypoint_detector.getParameters ().min_interest_value = 0.6; //0.6
+  narf_keypoint_detector.getParameters ().min_interest_value = 0.5; //0.6
   narf_keypoint_detector.getParameters ().optimal_range_image_patch_size = 20;
   //narf_keypoint_detector.getParameters ().distance_for_additional_points = 0.5;
 //  std::cout<< "min_interest_value:="

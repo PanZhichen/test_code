@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   pcl_ros
+    ndt_omp
 )
 FIND_PACKAGE(OpenCV REQUIRED)
 find_package(PCL 1.7 REQUIRED REQUIRED COMPONENTS io registration segmentation visualization)
@@ -73,6 +74,11 @@ target_link_libraries(fpfh_node
         )
 add_executable(keypoint_node src/keypoint.cpp)
 target_link_libraries(keypoint_node
+        ${catkin_LIBRARIES}
+        ${PCL_LIBRARIES}
+        )
+add_executable(NARF_node src/NARF_Ros.cpp)
+target_link_libraries(NARF_node
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES}
         )
