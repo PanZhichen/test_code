@@ -266,111 +266,111 @@ int main (int argc, char** argv) {
   tf::TransformBroadcaster tfBroadcaster;
   tfBroadcasterPointer = &tfBroadcaster;
 
-  ros::Subscriber livox_sub = nh.subscribe("/cloud", 30, &EstimateMotion::livox_cb, &estimatmotion);
-  cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/cloudMap", 3);
+//  ros::Subscriber livox_sub = nh.subscribe("/cloud", 30, &EstimateMotion::livox_cb, &estimatmotion);
+//  cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/cloudMap", 3);
+//
+//  ros::Rate loop_rate(10);
+//  while(ros::ok())
+//  {
+//    ros::spinOnce();
+//
+//    loop_rate.sleep();
+//  }
 
-  ros::Rate loop_rate(10);
-  while(ros::ok())
+  pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud(new PointCloudT);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud_s(new PointCloudT);
+//  PointCloudNT::Ptr pointcloudNT(new PointCloudNT);
+//  PointCloudNT::Ptr pointcloudNT_s(new PointCloudNT);
+
+  // Get input cloud
+  if (argc != 3)
   {
-    ros::spinOnce();
-
-    loop_rate.sleep();
+    pcl::console::print_error ("Syntax is: %s load1.pcd load2.pcd\n", argv[0]);
+    return (1);
+  }
+  // Load object and scene
+  pcl::console::print_highlight ("Loading point clouds...\n");
+  if (pcl::io::loadPCDFile<PointT> (argv[1], *pointCloud) < 0
+      || pcl::io::loadPCDFile<PointT> (argv[2], *pointCloud_s) < 0)
+  {
+    pcl::console::print_error ("Error loading object/scene file!\n");
+    return (1);
   }
 
-//  pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud(new PointCloudT);
-//  pcl::PointCloud<pcl::PointXYZ>::Ptr pointCloud_s(new PointCloudT);
-////  PointCloudNT::Ptr pointcloudNT(new PointCloudNT);
-////  PointCloudNT::Ptr pointcloudNT_s(new PointCloudNT);
-//
-//  // Get input cloud
-//  if (argc != 3)
-//  {
-//    pcl::console::print_error ("Syntax is: %s load1.pcd load2.pcd\n", argv[0]);
-//    return (1);
-//  }
-//  // Load object and scene
-//  pcl::console::print_highlight ("Loading point clouds...\n");
-//  if (pcl::io::loadPCDFile<PointT> (argv[1], *pointCloud) < 0
-//      || pcl::io::loadPCDFile<PointT> (argv[2], *pointCloud_s) < 0)
-//  {
-//    pcl::console::print_error ("Error loading object/scene file!\n");
-//    return (1);
-//  }
-//
-//  // Downsample
-//  estimatmotion.voxelfilter(pointCloud);
-//  estimatmotion.voxelfilter(pointCloud_s);
-//  //remove outliers
-//  estimatmotion.radiusfilter(pointCloud);
-//  estimatmotion.radiusfilter(pointCloud_s);
-//  //rang image
-//  pcl::RangeImage rangeImageSource, rangeImageTarget;
-//  estimatmotion.genRangeImage(rangeImageSource, pointCloud);
-//  std::cout << rangeImageSource << "\n\n";
-//  estimatmotion.genRangeImage(rangeImageTarget, pointCloud_s);
-//  std::cout << rangeImageTarget << "\n\n";
-//  //extract NARF
-//  pcl::PointCloud<int> keypoint_indices_s, keypoint_indices_t;
-//  estimatmotion.detectNARF(&rangeImageSource, keypoint_indices_s);
-//  std::cout << "Found "<<keypoint_indices_s.points.size ()<<" key points.\n";
-//  estimatmotion.detectNARF(&rangeImageTarget, keypoint_indices_t);
-//  std::cout << "Found "<<keypoint_indices_t.points.size ()<<" key points.\n";
-//  //compute normal
-//  PointCloudNT::Ptr NT_source (new PointCloudNT);
-//  PointCloudNT::Ptr NT_target(new PointCloudNT);
-//  estimatmotion.computeNormal(rangeImageSource, NT_source);
-//  estimatmotion.computeNormal(rangeImageTarget, NT_target);
-//  // Estimate features
-//  pcl::search::KdTree<pcl::PointWithRange>::Ptr tree(new pcl::search::KdTree<pcl::PointWithRange>);
-//  FeatureCloudT::Ptr cloud_features_source (new FeatureCloudT);
-//  FeatureCloudT::Ptr cloud_features_target (new FeatureCloudT);
-//  pcl::PointIndicesPtr kkeypoints_s (new pcl::PointIndices);
-//  for(size_t i=0; i<keypoint_indices_s.points.size (); i++){
-//    kkeypoints_s->indices.push_back(keypoint_indices_s.points[i]);
-//  }
-//  pcl::PointIndicesPtr kkeypoints_t (new pcl::PointIndices);
-//  for(size_t i=0; i<keypoint_indices_t.points.size (); i++){
-//    kkeypoints_t->indices.push_back(keypoint_indices_t.points[i]);
-//  }
-//  estimatmotion.computeFeature(tree, rangeImageSource, NT_source, kkeypoints_s, cloud_features_source);
-//  std::cout<<"cloud features:="<<cloud_features_source->points.size()<<std::endl;
-//  estimatmotion.computeFeature(tree, rangeImageTarget, NT_target, kkeypoints_t, cloud_features_target);
-//  std::cout<<"cloud features:="<<cloud_features_target->points.size()<<std::endl;
-//  // Perform alignment
-//  PointCloudT::Ptr cloud_aligned (new PointCloudT);
-//  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_ptr_s (new pcl::PointCloud<pcl::PointXYZ>);
-//  pcl::PointCloud<pcl::PointXYZ>& keypoints_s = *keypoints_ptr_s;
-//  keypoints_s.points.resize (keypoint_indices_s.points.size ());
-//  for (size_t i=0; i<keypoint_indices_s.points.size (); ++i)
-//    keypoints_s.points[i].getVector3fMap () = rangeImageSource.points[keypoint_indices_s.points[i]].getVector3fMap ();
-//
-//  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_ptr_t (new pcl::PointCloud<pcl::PointXYZ>);
-//  pcl::PointCloud<pcl::PointXYZ>& keypoints_t = *keypoints_ptr_t;
-//  keypoints_t.points.resize (keypoint_indices_t.points.size ());
-//  for (size_t i=0; i<keypoint_indices_t.points.size (); ++i)
-//    keypoints_t.points[i].getVector3fMap () = rangeImageTarget.points[keypoint_indices_t.points[i]].getVector3fMap ();
-//  Eigen::Matrix4f transformation;
-//  size_t inliers = estimatmotion.doAlignment(keypoints_ptr_s,keypoints_ptr_t,cloud_features_source,
-//                                             cloud_features_target,cloud_aligned,transformation);
-//  if(inliers>0){
-//    pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (0,0), transformation (0,1), transformation (0,2));
-//    pcl::console::print_info ("R = | %6.3f %6.3f %6.3f | \n", transformation (1,0), transformation (1,1), transformation (1,2));
-//    pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (2,0), transformation (2,1), transformation (2,2));
-//    pcl::console::print_info ("\n");
-//    pcl::console::print_info ("t = < %0.3f, %0.3f, %0.3f >\n", transformation (0,3), transformation (1,3), transformation (2,3));
-//    pcl::console::print_info ("\n");
-//    pcl::console::print_info ("Inliers: %i/%i\n", inliers, keypoints_ptr_s->size ());
-//
-//    // Executing the transformation
-//    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
-//    pcl::transformPointCloud (*pointCloud, *transformed_cloud, transformation);
-//    pcl::visualization::PCLVisualizer visu("Alignment");
-//    visu.addPointCloud (pointCloud_s, ColorHandlerT (pointCloud_s, 0.0, 255.0, 0.0), "target");
-//    visu.addPointCloud (transformed_cloud, ColorHandlerT (transformed_cloud, 0.0, 0.0, 255.0), "source");
-//    visu.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target");
-//    visu.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source");
-//    visu.spin ();
-//  }
+  // Downsample
+  estimatmotion.voxelfilter(pointCloud);
+  estimatmotion.voxelfilter(pointCloud_s);
+  //remove outliers
+  estimatmotion.radiusfilter(pointCloud);
+  estimatmotion.radiusfilter(pointCloud_s);
+  //rang image
+  pcl::RangeImage rangeImageSource, rangeImageTarget;
+  estimatmotion.genRangeImage(rangeImageSource, pointCloud);
+  std::cout << rangeImageSource << "\n\n";
+  estimatmotion.genRangeImage(rangeImageTarget, pointCloud_s);
+  std::cout << rangeImageTarget << "\n\n";
+  //extract NARF
+  pcl::PointCloud<int> keypoint_indices_s, keypoint_indices_t;
+  estimatmotion.detectNARF(&rangeImageSource, keypoint_indices_s);
+  std::cout << "Found "<<keypoint_indices_s.points.size ()<<" key points.\n";
+  estimatmotion.detectNARF(&rangeImageTarget, keypoint_indices_t);
+  std::cout << "Found "<<keypoint_indices_t.points.size ()<<" key points.\n";
+  //compute normal
+  PointCloudNT::Ptr NT_source (new PointCloudNT);
+  PointCloudNT::Ptr NT_target(new PointCloudNT);
+  estimatmotion.computeNormal(rangeImageSource, NT_source);
+  estimatmotion.computeNormal(rangeImageTarget, NT_target);
+  // Estimate features
+  pcl::search::KdTree<pcl::PointWithRange>::Ptr tree(new pcl::search::KdTree<pcl::PointWithRange>);
+  FeatureCloudT::Ptr cloud_features_source (new FeatureCloudT);
+  FeatureCloudT::Ptr cloud_features_target (new FeatureCloudT);
+  pcl::PointIndicesPtr kkeypoints_s (new pcl::PointIndices);
+  for(size_t i=0; i<keypoint_indices_s.points.size (); i++){
+    kkeypoints_s->indices.push_back(keypoint_indices_s.points[i]);
+  }
+  pcl::PointIndicesPtr kkeypoints_t (new pcl::PointIndices);
+  for(size_t i=0; i<keypoint_indices_t.points.size (); i++){
+    kkeypoints_t->indices.push_back(keypoint_indices_t.points[i]);
+  }
+  estimatmotion.computeFeature(tree, rangeImageSource, NT_source, kkeypoints_s, cloud_features_source);
+  std::cout<<"cloud features:="<<cloud_features_source->points.size()<<std::endl;
+  estimatmotion.computeFeature(tree, rangeImageTarget, NT_target, kkeypoints_t, cloud_features_target);
+  std::cout<<"cloud features:="<<cloud_features_target->points.size()<<std::endl;
+  // Perform alignment
+  PointCloudT::Ptr cloud_aligned (new PointCloudT);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_ptr_s (new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZ>& keypoints_s = *keypoints_ptr_s;
+  keypoints_s.points.resize (keypoint_indices_s.points.size ());
+  for (size_t i=0; i<keypoint_indices_s.points.size (); ++i)
+    keypoints_s.points[i].getVector3fMap () = rangeImageSource.points[keypoint_indices_s.points[i]].getVector3fMap ();
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr keypoints_ptr_t (new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZ>& keypoints_t = *keypoints_ptr_t;
+  keypoints_t.points.resize (keypoint_indices_t.points.size ());
+  for (size_t i=0; i<keypoint_indices_t.points.size (); ++i)
+    keypoints_t.points[i].getVector3fMap () = rangeImageTarget.points[keypoint_indices_t.points[i]].getVector3fMap ();
+  Eigen::Matrix4f transformation;
+  size_t inliers = estimatmotion.doAlignment(keypoints_ptr_s,keypoints_ptr_t,cloud_features_source,
+                                             cloud_features_target,cloud_aligned,transformation);
+  if(inliers>0){
+    pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (0,0), transformation (0,1), transformation (0,2));
+    pcl::console::print_info ("R = | %6.3f %6.3f %6.3f | \n", transformation (1,0), transformation (1,1), transformation (1,2));
+    pcl::console::print_info ("    | %6.3f %6.3f %6.3f | \n", transformation (2,0), transformation (2,1), transformation (2,2));
+    pcl::console::print_info ("\n");
+    pcl::console::print_info ("t = < %0.3f, %0.3f, %0.3f >\n", transformation (0,3), transformation (1,3), transformation (2,3));
+    pcl::console::print_info ("\n");
+    pcl::console::print_info ("Inliers: %i/%i\n", inliers, keypoints_ptr_s->size ());
+
+    // Executing the transformation
+    pcl::PointCloud<pcl::PointXYZ>::Ptr transformed_cloud (new pcl::PointCloud<pcl::PointXYZ> ());
+    pcl::transformPointCloud (*pointCloud, *transformed_cloud, transformation);
+    pcl::visualization::PCLVisualizer visu("Alignment");
+    visu.addPointCloud (pointCloud_s, ColorHandlerT (pointCloud_s, 0.0, 255.0, 0.0), "target");
+    visu.addPointCloud (transformed_cloud, ColorHandlerT (transformed_cloud, 0.0, 0.0, 255.0), "source");
+    visu.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "target");
+    visu.setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "source");
+    visu.spin ();
+  }
   return(0);
 }
 

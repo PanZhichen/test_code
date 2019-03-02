@@ -46,17 +46,17 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(ICP_test_node src/ICP_test.cpp)
-target_link_libraries(ICP_test_node
-   ${catkin_LIBRARIES}
-   ${PCL_LIBRARIES}
- )
-
-add_executable(pub_points_node src/pub_points.cpp)
-target_link_libraries(pub_points_node
-        ${catkin_LIBRARIES}
-        ${PCL_LIBRARIES}
-        )
+#add_executable(ICP_test_node src/ICP_test.cpp)
+#target_link_libraries(ICP_test_node
+#   ${catkin_LIBRARIES}
+#   ${PCL_LIBRARIES}
+# )
+#
+#add_executable(pub_points_node src/pub_points.cpp)
+#target_link_libraries(pub_points_node
+#        ${catkin_LIBRARIES}
+#        ${PCL_LIBRARIES}
+#        )
 add_executable(save_bag_node src/save_bag.cpp)
 target_link_libraries(save_bag_node
         ${catkin_LIBRARIES}
@@ -67,11 +67,11 @@ target_link_libraries(ICP_pcd_node
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES}
         )
-add_executable(fpfh_node src/fpfh_test.cpp)
-target_link_libraries(fpfh_node
-        ${catkin_LIBRARIES}
-        ${PCL_LIBRARIES}
-        )
+#add_executable(fpfh_node src/fpfh_test.cpp src/NDT_test.cpp)
+#target_link_libraries(fpfh_node
+#        ${catkin_LIBRARIES}
+#        ${PCL_LIBRARIES}
+#        )
 add_executable(keypoint_node src/keypoint.cpp)
 target_link_libraries(keypoint_node
         ${catkin_LIBRARIES}
@@ -79,6 +79,16 @@ target_link_libraries(keypoint_node
         )
 add_executable(NARF_node src/NARF_Ros.cpp)
 target_link_libraries(NARF_node
+        ${catkin_LIBRARIES}
+        ${PCL_LIBRARIES}
+        )
+add_executable(NDT_node src/NDT_test.cpp)
+target_link_libraries(NDT_node
+        ${catkin_LIBRARIES}
+        ${PCL_LIBRARIES}
+        )
+add_executable(cube_node src/cube.cpp)
+target_link_libraries(cube_node
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES}
         )
