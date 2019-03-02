@@ -140,6 +140,7 @@ main (int argc, char **argv)
   visu.addPointCloudNormals<PointNT, PointNT> (object_max, object_max, 1, 10.8, "normals_max");
   for (int i=1; i<cloudVec.size(); ++i)
   {
+//int i = 3;
     if(!cloudVec[i].empty()){
       PointCloudNT::Ptr object1 = cloudVec[i].makeShared();
       visu.addPointCloud (object1, ColorHandlerT (object1, 255.0, 0.0, 0.0), to_string(i));
@@ -170,31 +171,42 @@ main (int argc, char **argv)
       if(fabs(minor_vector(0))>fabs(find_x(0)))
         find_x = minor_vector;
       find_x.normalize();
+      Eigen::Vector3f d_to_x = Eigen::Vector3f(find_x(0),0,find_x(2)).cross(Eigen::Vector3f(1,0,0));
       float rotate_to_x = acos(find_x(0));
       if(rotate_to_x > (M_PI/2)){
-        rotate_to_x = - (M_PI - rotate_to_x);
+        rotate_to_x = -(M_PI - rotate_to_x);
       }
-      find_x(2)>=0 ? rotate_to_x : rotate_to_x *=(-1);
+      if(d_to_x(1)<0)
+        rotate_to_x*=(-1);
+//      if(fabs(d_to_x(0))<0.05)
+//        rotate_to_x=0;
+      //find_x(2)>=0 ? rotate_to_x : rotate_to_x *=(-1);
 
-      Eigen::Vector3f find_y = major_vector;
-      if(fabs(middle_vector(2))>fabs(find_y(2)))
-        find_y = middle_vector;
-      if(fabs(minor_vector(2))>fabs(find_y(2)))
-        find_y = minor_vector;
-      find_y.normalize();
-      Eigen::Vector3f d_to_ground = Eigen::Vector3f(0,find_y(1),find_y(2)).cross(Eigen::Vector3f(0,groundNormal(1),groundNormal(2)));
-      float rotate_to_ground = acos(find_y(1)*groundNormal(1)+find_y(2)*groundNormal(2));
-      if(fabs(rotate_to_ground) > (M_PI/2)){
-        rotate_to_ground = -(M_PI - rotate_to_ground);
+      Eigen::Vector3f find_z = major_vector;
+      if(fabs(middle_vector(2))>fabs(find_z(2)))
+        find_z = middle_vector;
+      if(fabs(minor_vector(2))>fabs(find_z(2)))
+        find_z = minor_vector;
+      find_z.normalize();
+      cout<<find_z<<"!!!!!!"<<endl;
+      Eigen::Vector3f d_to_z = Eigen::Vector3f(0,find_z(1),find_z(2)).cross(Eigen::Vector3f(0,groundNormal(1),groundNormal(2)));
+      cout<<d_to_z<<"!!!~~!!!"<<endl;
+      float rotate_to_z = acos(find_z(1)*groundNormal(1) + find_z(2)*groundNormal(2));
+      if(fabs(rotate_to_z) > (M_PI/2)){
+        rotate_to_z = -(M_PI - rotate_to_z);
       }
-      find_y(2)<0 ? rotate_to_ground : rotate_to_ground *=(-1);
-      cout<<rotate_to_ground<<"!!!!!!!!!"<<endl;
-//      if(d_to_ground(0)<0)
-//        rotate_to_ground*=(-1);
-
-      Eigen::Matrix3f R;
-      R = Eigen::AngleAxisf(rotate_to_x, Eigen::Vector3f::UnitY())* Eigen::AngleAxisf(rotate_to_ground, Eigen::Vector3f::UnitX());
-      rotational_matrix_OBB = R * rotational_matrix_OBB;
+//      find_y(2)<0 ? rotate_to_ground : rotate_to_ground *=(-1);
+//      cout<<rotate_to_ground<<"!!!!!!!!!"<<endl;
+      if(d_to_z(0)<0)
+        rotate_to_z*=(-1);
+      if(fabs(d_to_z(0))<0.1)
+        rotate_to_z=0;
+      cout<<rotate_to_z<<"!!!!!!!!!"<<endl;
+      Eigen::Matrix3f R, R1;
+      R = Eigen::AngleAxisf(rotate_to_x, Eigen::Vector3f::UnitY())*Eigen::AngleAxisf(rotate_to_z, Eigen::Vector3f::UnitX());
+      R1 = Eigen::AngleAxisf(rotate_to_z, Eigen::Vector3f::UnitX());
+      cout<<"ang:="<<R1.eulerAngles(0,1,2)<<"!!!!!!!!!"<<endl;
+      rotational_matrix_OBB = R* rotational_matrix_OBB;
 
       Eigen::Vector3f position (position_OBB.x, position_OBB.y, position_OBB.z);
       Eigen::Quaternionf quat (rotational_matrix_OBB);
