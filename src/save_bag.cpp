@@ -12,6 +12,7 @@
 #include <tf/transform_broadcaster.h>
 #include <Eigen/Dense>
 #include <pcl/search/kdtree.h>
+#include <pcl/filters/voxel_grid.h>
 
 using namespace std;
 
@@ -19,6 +20,8 @@ tf::TransformBroadcaster *tfBroadcasterPointer = NULL;
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_src (new pcl::PointCloud<pcl::PointXYZ>);
 pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_targ (new pcl::PointCloud<pcl::PointXYZI>);
 ros::Publisher cloud_pub;
+pcl::VoxelGrid<pcl::PointXYZI> voxelgrid;
+
 
 void livox_cb(const sensor_msgs::PointCloud2::ConstPtr& lvx_msg)
 {
@@ -35,9 +38,13 @@ void livox_cb(const sensor_msgs::PointCloud2::ConstPtr& lvx_msg)
   for(size_t i=0; i<cloud_targ->points.size(); ++i)
   {
     float tmp = cloud_targ->points[i].x;
-    cloud_targ->points[i].x = cloud_targ->points[i].y;
-    cloud_targ->points[i].y = -tmp;
+    cloud_targ->points[i].x = -cloud_targ->points[i].y;
+    cloud_targ->points[i].y = tmp;
   }
+  pcl::PointCloud<pcl::PointXYZI>::Ptr downsampled(new pcl::PointCloud<pcl::PointXYZI>);
+  voxelgrid.setInputCloud(cloud_targ);
+  voxelgrid.filter(*downsampled);
+  *cloud_targ = *downsampled;
   //------------------------------------
   sensor_msgs::PointCloud2 surroundCloud2;
   pcl::toROSMsg(*cloud_targ, surroundCloud2);
@@ -56,6 +63,8 @@ int main (int argc, char** argv)
 
   tf::TransformBroadcaster tfBroadcaster;
   tfBroadcasterPointer = &tfBroadcaster;
+
+  voxelgrid.setLeafSize(0.1f, 0.1f, 0.1f);
 
   ros::Subscriber livox_sub = nh_icp.subscribe("/cloud", 10, livox_cb);
   cloud_pub = nh_icp.advertise<sensor_msgs::PointCloud2>("/velodyne_points", 3);
