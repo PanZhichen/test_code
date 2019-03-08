@@ -33,6 +33,7 @@ typedef pcl::FPFHEstimationOMP<PointNT,PointNT,FeatureT> FeatureEstimationT;
 typedef pcl::PointCloud<FeatureT> FeatureCloudT;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointNT> ColorHandlerT;
 typedef pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> ColorHandlerTI;
+typedef pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> ColorHandlerTIG;
 
 struct CloudWithLabel{
     int label;
@@ -229,7 +230,8 @@ int main (int argc, char **argv)
         for (int i=0; i<cloudwithlabel.size(); ++i){
           if(!cloudwithlabel[i].cloud.empty()){
             PointCloudTI::Ptr object1 = cloudwithlabel[i].cloud.makeShared();
-            visu.addPointCloud (object1, ColorHandlerTI (object1, 255.0, 0.0, 0.0), to_string(i));
+//            visu.addPointCloud (object1, ColorHandlerTI (object1, 255.0, 0.0, 0.0), to_string(i));
+            visu.addPointCloud (object1, ColorHandlerTIG (object1, "intensity"), to_string(i));
             pcl::MomentOfInertiaEstimation <pcl::PointXYZI> feature_extractor;
             feature_extractor.setInputCloud (object1);
             feature_extractor.compute ();
@@ -295,8 +297,10 @@ int main (int argc, char **argv)
             Eigen::Quaternionf quat (rotational_matrix_OBB);
             visu.addCube (position, quat, max_point_OBB.x - min_point_OBB.x,
                           max_point_OBB.y - min_point_OBB.y, max_point_OBB.z - min_point_OBB.z, "OBB"+to_string(i));
-            visu.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
-                                             pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "OBB"+to_string(i));
+//            visu.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
+//                                             pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "OBB"+to_string(i));
+            visu.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,
+                                             255.0,0.0,255.0, "OBB"+to_string(i));
 
             pcl::PointXYZ center (mass_center (0), mass_center (1), mass_center (2));
             pcl::PointXYZ x_axis (major_vector (0) + mass_center (0), major_vector (1) + mass_center (1),
