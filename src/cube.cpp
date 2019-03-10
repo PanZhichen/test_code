@@ -15,6 +15,7 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/features/moment_of_inertia_estimation.h>
+//#include <pcl/visualization/point_cloud_color_handlers.h>
 #include <vector>
 #include <list>
 #include <fstream>
@@ -22,22 +23,28 @@
 #include <dirent.h>
 #include <stdio.h>
 #include <errno.h>
+#include "process_points/colors.h"
 
 using namespace std;
 // Types
-typedef pcl::PointXYZINormal PointNT;
+typedef pcl::PointXYZRGBNormal PointNT;
 typedef pcl::PointCloud<PointNT> PointCloudNT;
 typedef pcl::PointCloud<pcl::PointXYZI> PointCloudTI;
+typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudTRGB;
 typedef pcl::FPFHSignature33 FeatureT;
 typedef pcl::FPFHEstimationOMP<PointNT,PointNT,FeatureT> FeatureEstimationT;
 typedef pcl::PointCloud<FeatureT> FeatureCloudT;
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointNT> ColorHandlerT;
 typedef pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZI> ColorHandlerTI;
 typedef pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> ColorHandlerTIG;
+typedef pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> ColorRGB;
+typedef pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGBNormal> ColorRGBNormal;
+pcl::GlasbeyLUT CubeColors;
+vector<pcl::RGB> colorTable;
 
 struct CloudWithLabel{
     int label;
-    pcl::PointCloud<pcl::PointXYZI> cloud;
+    pcl::PointCloud<pcl::PointXYZRGB> cloud;
 };
 int findMaxNormal(vector<int>& NV)
 {
@@ -84,9 +91,63 @@ int scanFiles(vector<string> &fileList, string inputDirectory)
   closedir(p_dir);
   return fileList.size();
 }
+pcl::RGB getRGB(float& intensity){
+  pcl::RGB rgb;
+  if(intensity < 30.0){
+    int green = intensity * 255 / 30;
+    rgb.r = 0;
+    rgb.g = green & 0xff;
+    rgb.b = 0xff;
+  }else{
+    if(intensity < 90.0){
+      int blue = (90 - intensity) * 255 / 60;
+      rgb.r = 0;
+      rgb.g = 0xff;
+      rgb.b = blue & 0xff;
+    }else{
+      if(intensity < 150.0){
+        int red = (intensity - 90) * 255 /60;
+        rgb.r = red & 0xff;
+        rgb.g = 0xff;
+        rgb.b = 0;
+      }else{
+        int green = (255 - intensity) * 255 / (256 - 150);
+        rgb.r = 0xff;
+        rgb.g = green & 0xff;
+        rgb.b = 0;
+      }
+    }
+  }
+  return rgb;
+}
 
 int main (int argc, char **argv)
 {
+  pcl::RGB rgbT;
+  rgbT.r=255.0;
+  rgbT.g=0.0;
+  rgbT.b=0.0;
+  colorTable.push_back(rgbT);
+  rgbT.r=0.0;
+  rgbT.g=255.0;
+  rgbT.b=0.0;
+  colorTable.push_back(rgbT);
+  rgbT.r=0.0;
+  rgbT.g=0.0;
+  rgbT.b=255.0;
+  colorTable.push_back(rgbT);
+  rgbT.r=126.0;
+  rgbT.g=0.0;
+  rgbT.b=60.0;
+  colorTable.push_back(rgbT);
+  rgbT.r=0.0;
+  rgbT.g=139.0;
+  rgbT.b=20.0;
+  colorTable.push_back(rgbT);
+  rgbT.r=30.0;
+  rgbT.g=0.0;
+  rgbT.b=200.0;
+  colorTable.push_back(rgbT);
   // Point clouds
   PointCloudNT groundCloud;
   vector<PointCloudNT> cloudVec;
@@ -141,11 +202,14 @@ int main (int argc, char **argv)
             p = strtok(NULL, split);
           }
           if(nums[4] > 0){
-            pcl::PointXYZI point;
+            pcl::PointXYZRGB point;
             point.x = nums[0];
             point.y = nums[1];
             point.z = nums[2];
-            point.intensity = nums[3];
+            pcl::RGB rgb = getRGB(nums[3]);
+            point.r = rgb.r;
+            point.g = rgb.b;
+            point.b = rgb.b;
             bool exist = false;
             for(int i=0; i<cloudwithlabel.size(); ++i){
               if(cloudwithlabel[i].label == nums[4]){
@@ -165,7 +229,10 @@ int main (int argc, char **argv)
               groundP.x = nums[0];
               groundP.y = nums[1];
               groundP.z = nums[2];
-              groundP.intensity = nums[3];
+              pcl::RGB rgb = getRGB(nums[3]);
+              groundP.r = rgb.r;
+              groundP.g = rgb.b;
+              groundP.b = rgb.b;
               groundCloud.points.push_back(groundP);
 //            }
           }
@@ -226,23 +293,22 @@ int main (int argc, char **argv)
         }
         visu.removeAllPointClouds();
         visu.removeAllShapes();
-        visu.addPointCloud (groundCloud.makeShared(),
-                pcl::visualization::PointCloudColorHandlerGenericField<PointNT>(groundCloud.makeShared(), "intensity"), "ground");
+        visu.addPointCloud (groundCloud.makeShared(),ColorRGBNormal(groundCloud.makeShared()), "ground");
 
         //add cube
         for (int i=0; i<cloudwithlabel.size(); ++i){
           if(!cloudwithlabel[i].cloud.empty()){
-            PointCloudTI::Ptr object1 = cloudwithlabel[i].cloud.makeShared();
+            PointCloudTRGB::Ptr object1 = cloudwithlabel[i].cloud.makeShared();
 //            visu.addPointCloud (object1, ColorHandlerTI (object1, 255.0, 0.0, 0.0), to_string(i));
-            visu.addPointCloud (object1, ColorHandlerTIG (object1, "intensity"), to_string(i));
-            pcl::MomentOfInertiaEstimation <pcl::PointXYZI> feature_extractor;
+            visu.addPointCloud (object1, ColorRGB (object1), to_string(i));
+            pcl::MomentOfInertiaEstimation <pcl::PointXYZRGB> feature_extractor;
             feature_extractor.setInputCloud (object1);
             feature_extractor.compute ();
             std::vector <float> moment_of_inertia;
             std::vector <float> eccentricity;
-            pcl::PointXYZI min_point_OBB;
-            pcl::PointXYZI max_point_OBB;
-            pcl::PointXYZI position_OBB;
+            pcl::PointXYZRGB min_point_OBB;
+            pcl::PointXYZRGB max_point_OBB;
+            pcl::PointXYZRGB position_OBB;
             Eigen::Matrix3f rotational_matrix_OBB;
             float major_value, middle_value, minor_value;
             Eigen::Vector3f major_vector, middle_vector, minor_vector;
@@ -302,8 +368,16 @@ int main (int argc, char **argv)
                           max_point_OBB.y - min_point_OBB.y, max_point_OBB.z - min_point_OBB.z, "OBB"+to_string(i));
 //            visu.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_REPRESENTATION,
 //                                             pcl::visualization::PCL_VISUALIZER_REPRESENTATION_WIREFRAME, "OBB"+to_string(i));
+//            float label = (cloudwithlabel[i].label % 10) * 28.0;
+//            pcl::RGB rgb = getRGB(label);
+//            int i_color = (cloudwithlabel[i].label % 10) * 25;
+//            cout<<"label:="<<cloudwithlabel[i].label<<"  i:="<<i_color<<endl;
+//            visu.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,
+//                                             CubeColors.at(i_color).r,CubeColors.at(i_color).g,CubeColors.at(i_color).b, "OBB"+to_string(i));
+            int i_color = (cloudwithlabel[i].label % 6);
+            cout<<"label:="<<cloudwithlabel[i].label<<"  i:="<<i_color<<endl;
             visu.setShapeRenderingProperties(pcl::visualization::PCL_VISUALIZER_COLOR,
-                                             255.0,0.0,255.0, "OBB"+to_string(i));
+                                             colorTable[i_color].r,colorTable[i_color].g,colorTable[i_color].b, "OBB"+to_string(i));
 
             pcl::PointXYZ center (mass_center (0), mass_center (1), mass_center (2));
             pcl::PointXYZ x_axis (major_vector (0) + mass_center (0), major_vector (1) + mass_center (1),
@@ -318,7 +392,8 @@ int main (int argc, char **argv)
           }
         }
 //      }
-      visu.spinOnce (100);
+      cout<<"----------------------"<<endl;
+      visu.spinOnce (20);
     }
     return 0;
   }else{

@@ -20,23 +20,23 @@ find_package(PCL 1.7 REQUIRED REQUIRED COMPONENTS io registration segmentation v
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
-catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES process_points
-  CATKIN_DEPENDS roscpp rospy std_msgs
-  DEPENDS system_lib
-)
-
 include_directories(
-# include
-  ${catkin_INCLUDE_DIRS}
-  ${PCL_INCLUDE_DIRS}
+        include
+        ${catkin_INCLUDE_DIRS}
+        ${PCL_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
-# add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/process_points.cpp
-# )
+add_library(colors
+		src/colors.cpp
+		)
+
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES process_points colors
+  CATKIN_DEPENDS roscpp rospy std_msgs
+  DEPENDS system_lib
+)
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -57,6 +57,7 @@ include_directories(
 #        ${catkin_LIBRARIES}
 #        ${PCL_LIBRARIES}
 #        )
+link_libraries(colors)
 add_executable(save_bag_node src/save_bag.cpp)
 target_link_libraries(save_bag_node
         ${catkin_LIBRARIES}
@@ -91,4 +92,5 @@ add_executable(cube_node src/cube.cpp)
 target_link_libraries(cube_node
         ${catkin_LIBRARIES}
         ${PCL_LIBRARIES}
+	colors
         )
