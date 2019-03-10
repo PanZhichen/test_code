@@ -123,6 +123,7 @@ int main (int argc, char **argv)
 //        cout<<allfiles[i]<<endl;
 //        continue;
         cloudwithlabel.clear();
+        groundCloud.clear();
         //读取文件数据
         in.open(allfiles[i], ios::in);
         if (! in.is_open())
@@ -159,29 +160,29 @@ int main (int argc, char **argv)
               cloudwithlabel.push_back(tmp);
             }
           }else{
-            if(!INITED){
+//            if(!INITED){
               PointNT groundP;
               groundP.x = nums[0];
               groundP.y = nums[1];
               groundP.z = nums[2];
               groundP.intensity = nums[3];
               groundCloud.points.push_back(groundP);
-            }
+//            }
           }
         }
         in.close();
+
+        PointCloudNT::Ptr object = groundCloud.makeShared();
+//        cout<<"before"<<object->points.size()<<endl;
+        PointCloudNT::Ptr downsampled(new PointCloudNT);
+        pcl::VoxelGrid<PointNT> voxelgrid;
+        voxelgrid.setLeafSize(0.1f, 0.1f, 0.1f);
+        voxelgrid.setInputCloud(object);
+        voxelgrid.filter(*downsampled);
+        *object = *downsampled;
+//        cout<<"after"<<object->points.size()<<endl;
         //估计地面法向量
         if(!INITED){
-          PointCloudNT::Ptr object = groundCloud.makeShared();
-          cout<<"before"<<object->points.size()<<endl;
-          PointCloudNT::Ptr downsampled(new PointCloudNT);
-          pcl::VoxelGrid<PointNT> voxelgrid;
-          voxelgrid.setLeafSize(0.1f, 0.1f, 0.1f);
-          voxelgrid.setInputCloud(object);
-          voxelgrid.filter(*downsampled);
-          *object = *downsampled;
-          cout<<"after"<<object->points.size()<<endl;
-
           // Estimate normals for scene
           bool DONE = false;
           pcl::console::print_highlight ("Estimating scene normals...\n");
@@ -218,13 +219,15 @@ int main (int argc, char **argv)
           int maxNormal = findMaxNormal(normalNum);
           groundNormal = Eigen::Vector3f(object->points[maxNormal].normal_x,object->points[maxNormal].normal_y,object->points[maxNormal].normal_z);
           groundNormal.normalize();
-          visu.addPointCloud (object, ColorHandlerT (object, 0.0, 255.0, 0.0), "ground");
+//          visu.addPointCloud (object, ColorHandlerT (object, 0.0, 255.0, 0.0), "ground");
+//          visu.addPointCloud (object, pcl::visualization::PointCloudColorHandlerGenericField<PointNT>(object, "intensity"), "ground");
 //          visu.addPointCloudNormals<PointNT, PointNT> (object_max, object_max, 1, 10.8, "normals_max");
           INITED = true;
         }
         visu.removeAllPointClouds();
         visu.removeAllShapes();
-        visu.addPointCloud (groundCloud.makeShared(), ColorHandlerT (groundCloud.makeShared(), 0.0, 255.0, 0.0), "ground");
+        visu.addPointCloud (groundCloud.makeShared(),
+                pcl::visualization::PointCloudColorHandlerGenericField<PointNT>(groundCloud.makeShared(), "intensity"), "ground");
 
         //add cube
         for (int i=0; i<cloudwithlabel.size(); ++i){
